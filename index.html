@@ -301,7 +301,7 @@ pre.handover{white-space:pre-wrap;word-break:break-word;background:var(--surface
             <div class="hint">置換液內部的 Pre/Post 分配；建議 50–100% 依凝血風險（Post 自動 = 100 − Pre）</div>
           </div>
           <details class="adv" id="advBox">
-            <summary>進階：PBP、取整、袋量</summary>
+            <summary>進階：PBP、刻度取整、袋量</summary>
             <div class="fields">
               <div class="field">
                 <label for="pbp">PBP 血泵前液</label>
@@ -310,8 +310,8 @@ pre.handover{white-space:pre-wrap;word-break:break-word;background:var(--surface
               </div>
               <div class="field">
                 <span class="lbl">設定值取整</span>
-                <label class="toggle"><input type="checkbox" id="round10"> 取整至 10 mL/hr</label>
-                <div class="hint">方便直接輸入機器；實際劑量以取整後數值重算</div>
+                <label class="toggle"><input type="checkbox" id="round10"> 依機器刻度取整</label>
+                <div class="hint">透析液、置換液取整至 50 mL/hr，PBP 取整至 10 mL/hr（Prismaflex 規格刻度）；淨脫水依醫囑不取整。實際劑量以取整後數值重算</div>
               </div>
               <div class="field">
                 <label for="bagFluid">透析/置換液袋</label>
@@ -593,24 +593,24 @@ pre.handover{white-space:pre-wrap;word-break:break-word;background:var(--surface
   function n(v){ var x = parseFloat(v); return isFinite(x) ? x : 0; }
   function has(v){ return v !== "" && v !== null && isFinite(parseFloat(v)); }
   function fmt(v, d){ if (v === null || !isFinite(v)) return "–"; return Number(v).toLocaleString("en-US",{minimumFractionDigits:d||0, maximumFractionDigits:d||0}); }
-  function r10(x){ return Math.round(x/10)*10; }
+  function rnd(x, step){ return Math.round(x/step)*step; }
   function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
   function hrs(h){ if (!isFinite(h) || h <= 0) return "–"; if (h >= 100) return "> 99 hr"; return fmt(h,1) + " hr"; }
 
   function calc(st){
     var W = n(st.weight), dose = n(st.dose), qb = n(st.qb), H = n(st.hours), nuf = n(st.netuf);
-    var pbp = n(st.pbp), ratio = Math.min(Math.max(n(st.dratio),0),100), prep = Math.min(Math.max(n(st.prepct),0),100);
+    var pbpRaw = n(st.pbp), pbp = st.round10 ? rnd(pbpRaw, 10) : pbpRaw, ratio = Math.min(Math.max(n(st.dratio),0),100), prep = Math.min(Math.max(n(st.prepct),0),100);
     var target = W * dose;
     var treat = Math.max(target - nuf - pbp, 0);
     var qd, qr;
     if (st.mode === "CVVHD"){ qd = treat; qr = 0; }
     else if (st.mode === "CVVH"){ qd = 0; qr = treat; }
     else { qd = treat * ratio / 100; qr = treat - qd; }
-    var pre = st.mode === "CVVHD" ? 0 : qr * prep / 100;
+    var raw = {qd:qd, qr:qr, pbp:pbpRaw};
+    // Prismaflex increments: dialysate & replacement 50 mL/h, PBP 10 mL/h
+    if (st.round10){ qd = rnd(qd, 50); qr = rnd(qr, 50); }
+    var pre = st.mode === "CVVHD" ? 0 : Math.round(qr * prep / 100);
     var post = qr - pre;
-    var raw = {qd:qd, pre:pre, post:post};
-    if (st.round10){ qd = r10(qd); pre = r10(pre); post = r10(post); pbp = r10(pbp); nuf = r10(nuf); }
-    qr = pre + post;
     var eff = qd + qr + pbp + nuf;
     var actual = W > 0 ? eff / W : 0;
     var hctOk = has(st.hct) && n(st.hct) > 5 && n(st.hct) < 75;
@@ -670,8 +670,9 @@ pre.handover{white-space:pre-wrap;word-break:break-word;background:var(--surface
         add("warn", "肝素 Bolus " + fmt(r.hep.bolusMl,2) + " mL " + (r.hep.bolusMl < sp.bmin ? "低於" : "高於") + " " + sz + " mL 注射筒可給的 Bolus 範圍 " + sp.bmin + "–" + sp.bmax + " mL；可改由其他途徑推注或調整濃度。");
     }
     if (st.ac === "RCA（枸櫞酸）" && !(r.pbp > 0)) add("info", "RCA 通常以 PBP 給予枸櫞酸；目前 PBP 為 0，劑量計算未含枸櫞酸流量。");
-    if (st.round10 && (Math.abs(r.raw.qd - r.qd) >= 1 || Math.abs(r.raw.pre - r.pre) >= 1 || Math.abs(r.raw.post - r.post) >= 1))
-      add("info", "設定值已取整至 10 mL/hr，實際劑量依取整後數值重算。");
+    if (st.round10 && (Math.abs(r.raw.qd - r.qd) >= 1 || Math.abs(r.raw.qr - r.qr) >= 1 || Math.abs(r.raw.pbp - r.pbp) >= 1))
+      add("info", "設定值已依機器刻度取整（透析液/置換液 50、PBP 10 mL/hr），實際劑量依取整後數值重算：" + fmt(r.actual,1) + " mL/kg/hr。");
+    if (r.qb > 0 && r.qb % 10 !== 0) add("info", "Prismaflex 血流量以 10 mL/min 為刻度，" + fmt(r.qb) + " mL/min 無法直接設定。");
     if (!(r.H > 0)) add("warn", "請輸入預計治療時數。");
     if (!L.some(function(x){ return x.lv === "crit" || x.lv === "warn"; })) L.unshift({lv:"ok", t:"處方分配合理，無需特別處理的警示。"});
     return L;
@@ -737,7 +738,7 @@ pre.handover{white-space:pre-wrap;word-break:break-word;background:var(--surface
     $("dAwrap").className = "v " + (r.actual <= 0 ? "" : r.actual < 20 ? "warn" : "good");
     $("dEwrap").className = "v " + (r.effDose === null ? "" : r.effDose < 20 ? "warn" : "good");
     $("dFwrap").className = "v " + (r.ff === null ? "" : r.ff > 25 ? "crit" : r.ff > 20 ? "warn" : "good");
-    $("roundNote").textContent = st.round10 ? "設定值已取整至 10 mL/hr。" + (r.W > 0 ? "取整前：透析液 " + fmt(r.raw.qd) + "、Pre " + fmt(r.raw.pre) + "、Post " + fmt(r.raw.post) + " mL/hr。" : "") : "未取整，顯示原始計算值。";
+    $("roundNote").textContent = st.round10 ? "已依機器刻度取整：透析液/置換液 50、PBP 10 mL/hr；Pre/Post 依比例由置換液總量分配。" + (r.W > 0 ? "取整前：透析液 " + fmt(r.raw.qd) + "、置換液 " + fmt(r.raw.qr) + (r.raw.pbp > 0 ? "、PBP " + fmt(r.raw.pbp) : "") + " mL/hr。" : "") : "未取整，顯示原始計算值。";
 
     // circuit
     $("sQb").textContent = fmt(r.qb); $("sPbp").textContent = fmt(r.pbp); $("sPre").textContent = fmt(r.pre);
