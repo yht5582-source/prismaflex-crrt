@@ -360,6 +360,11 @@ pre.handover{white-space:pre-wrap;word-break:break-word;background:var(--surface
               <div class="inp"><input id="hepMl" type="number" inputmode="numeric" min="0" step="5"><span class="u">mL</span></div>
               <div class="derived" id="hepConcD"></div>
             </div>
+            <div class="field">
+              <label for="hepSyr">注射筒規格</label>
+              <div class="inp"><select id="hepSyr"><option value="10">10 mL</option><option value="20">20 mL</option><option value="30">30 mL</option><option value="50">50 mL</option></select></div>
+              <div class="derived" id="hepSyrD"></div>
+            </div>
             <div class="subhead">依體重帶入（選用）</div>
             <div class="field">
               <label for="hepBolusKg">Bolus</label>
@@ -526,7 +531,7 @@ pre.handover{white-space:pre-wrap;word-break:break-word;background:var(--surface
     </div>
   </section>
 
-  <p class="foot"><b>計算方式</b>：目標 Effluent = 體重 × 目標劑量；治療液 = 目標 Effluent − Net UF − PBP；CVVHDF 依透析液比例分配，CVVH 全為置換液，CVVHD 全為透析液；置換液再依 Pre/Post 比例分配。實際劑量 = (透析液 + 置換液 + PBP + Net UF) ÷ 體重。血漿流量 Qp = Qb × 60 × (1 − Hct)；前稀釋校正係數 = Qp ÷ (Qp + Pre + PBP)；FF = (Pre + Post + PBP + Net UF) ÷ (Qp + Pre + PBP)。<br>本工具為計算與執行摘要工具，不取代醫囑；Prismaflex 各項設定範圍請依機型、套組與軟體版本確認。設定值（不含病人資料）會記在這台裝置的瀏覽器中。</p>
+  <p class="foot"><b>計算方式</b>：目標 Effluent = 體重 × 目標劑量；治療液 = 目標 Effluent − Net UF − PBP；CVVHDF 依透析液比例分配，CVVH 全為置換液，CVVHD 全為透析液；置換液再依 Pre/Post 比例分配。實際劑量 = (透析液 + 置換液 + PBP + Net UF) ÷ 體重。血漿流量 Qp = Qb × 60 × (1 − Hct)；前稀釋校正係數 = Qp ÷ (Qp + Pre + PBP)；FF = (Pre + Post + PBP + Net UF) ÷ (Qp + Pre + PBP)。<br>肝素注射筒速率與 Bolus 範圍取自 Prismaflex System Specifications（10 mL：0.1–5；20 mL：0.5–5；30 mL：0.5–10；50 mL：2–20 mL/hr）。本工具為計算與執行摘要工具，不取代醫囑；Prismaflex 各項設定範圍請依機型、套組與軟體版本確認。設定值（不含病人資料）會記在這台裝置的瀏覽器中。</p>
 </div>
 
 <div class="mbar" aria-hidden="true">
@@ -547,10 +552,18 @@ pre.handover{white-space:pre-wrap;word-break:break-word;background:var(--surface
   var DEFAULTS = {
     weight:60, mode:"CVVHDF", dose:25, qb:180, hours:24, hct:30,
     netuf:100, dratio:50, prepct:70, pbp:0, round10:true, bagFluid:5000, bagEff:5000,
-    ac:"肝素", hepBolus:0, hepMaint:0, hepU:25000, hepMl:50, hepBolusKg:"", hepMaintKg:"", hepTarget:"",
+    ac:"肝素", hepBolus:0, hepMaint:0, hepU:25000, hepMl:50, hepSyr:50, hepBolusKg:"", hepMaintKg:"", hepTarget:"",
     rcaCit:"院內RCA流程", rcaCa:"院內鈣回輸流程", notes:""
   };
-  var NUM_KEYS = ["weight","dose","qb","hours","hct","netuf","dratio","prepct","pbp","bagFluid","bagEff","hepBolus","hepMaint","hepU","hepMl","hepBolusKg","hepMaintKg"];
+  var NUM_KEYS = ["weight","dose","qb","hours","hct","netuf","dratio","prepct","pbp","bagFluid","bagEff","hepBolus","hepMaint","hepU","hepMl","hepSyr","hepBolusKg","hepMaintKg"];
+  // Prismaflex System Specifications (heparin pump): continuous rate "0 or min–max" mL/h, increment 0.1; bolus volume range mL
+  var SYR = {
+    10:{min:0.1, max:5,  bmin:0.5, bmax:5},
+    20:{min:0.5, max:5,  bmin:0.5, bmax:5},
+    30:{min:0.5, max:10, bmin:1,   bmax:5},
+    50:{min:2,   max:20, bmin:2,   bmax:9.9}
+  };
+  function syrSpec(v){ return SYR[String(n(v))] || SYR["50"]; }
   var TEXT_KEYS = ["hepTarget","rcaCit","rcaCa","notes"];
   var PT_KEYS = ["ptName","ptMrn","ptBed","ptDate","ptMd","ptRn"];
 
@@ -643,8 +656,18 @@ pre.handover{white-space:pre-wrap;word-break:break-word;background:var(--surface
     if (st.ac === "肝素"){
       if (!(r.hep.maint > 0)) add("info", "已選擇肝素，但維持劑量為 0 U/hr，請確認醫囑。");
       if (r.hep.maint > 0 && !(r.hep.conc > 0)) add("warn", "請填寫肝素注射筒配製（總量與稀釋體積），才能換算 mL/hr。");
-      if (r.hep.rateMl !== null && r.hep.maint > 0 && (r.hep.rateMl < 0.5 || r.hep.rateMl > 5))
-        add("warn", "肝素幫浦速率 " + fmt(r.hep.rateMl,2) + " mL/hr 可能超出 Prismaflex 注射筒幫浦常見連續輸注範圍（約 0.5–5 mL/hr，依機型與軟體版本確認）；可調整稀釋濃度。");
+      var sp = syrSpec(st.hepSyr), sz = fmt(n(st.hepSyr)), rng = "0 或 " + sp.min + "–" + sp.max + " mL/hr";
+      if (n(st.hepMl) > n(st.hepSyr)) add("warn", "稀釋體積 " + fmt(n(st.hepMl)) + " mL 大於注射筒規格 " + sz + " mL，請確認配製或改選較大注射筒。");
+      if (r.hep.rateMl !== null && r.hep.maint > 0){
+        if (r.hep.rateMl < sp.min)
+          add("warn", "肝素幫浦速率 " + fmt(r.hep.rateMl,2) + " mL/hr 低於 " + sz + " mL 注射筒的最低連續速率 " + sp.min + " mL/hr（Prismaflex 規格：" + rng + "）。可把肝素稀釋得更淡（同劑量需要更多 mL），或改用最低速率較低的注射筒。");
+        else if (r.hep.rateMl > sp.max)
+          add("warn", "肝素幫浦速率 " + fmt(r.hep.rateMl,2) + " mL/hr 高於 " + sz + " mL 注射筒的最高連續速率 " + sp.max + " mL/hr（Prismaflex 規格：" + rng + "）。可提高肝素濃度，或改用較大的注射筒。");
+        else if (Math.abs(r.hep.rateMl*10 - Math.round(r.hep.rateMl*10)) > 1e-6)
+          add("info", "Prismaflex 注射筒速率以 0.1 mL/hr 為刻度，" + fmt(r.hep.rateMl,2) + " mL/hr 實際只能設為 " + fmt(Math.round(r.hep.rateMl*10)/10,1) + " mL/hr（約 " + fmt(Math.round(r.hep.rateMl*10)/10*r.hep.conc) + " U/hr）。");
+      }
+      if (r.hep.bolusMl !== null && r.hep.bolus > 0 && (r.hep.bolusMl < sp.bmin || r.hep.bolusMl > sp.bmax))
+        add("warn", "肝素 Bolus " + fmt(r.hep.bolusMl,2) + " mL " + (r.hep.bolusMl < sp.bmin ? "低於" : "高於") + " " + sz + " mL 注射筒可給的 Bolus 範圍 " + sp.bmin + "–" + sp.bmax + " mL；可改由其他途徑推注或調整濃度。");
     }
     if (st.ac === "RCA（枸櫞酸）" && !(r.pbp > 0)) add("info", "RCA 通常以 PBP 給予枸櫞酸；目前 PBP 為 0，劑量計算未含枸櫞酸流量。");
     if (st.round10 && (Math.abs(r.raw.qd - r.qd) >= 1 || Math.abs(r.raw.pre - r.pre) >= 1 || Math.abs(r.raw.post - r.post) >= 1))
@@ -688,6 +711,8 @@ pre.handover{white-space:pre-wrap;word-break:break-word;background:var(--surface
     // heparin derived
     var h = r.hep;
     $("hepConcD").innerHTML = h.conc > 0 ? "濃度 <b>" + fmt(h.conc) + "</b> U/mL" : "請填寫以換算 mL";
+    var sp = syrSpec(st.hepSyr);
+    $("hepSyrD").innerHTML = "連續速率 0 或 <b>" + sp.min + "–" + sp.max + "</b> mL/hr（刻度 0.1）；Bolus <b>" + sp.bmin + "–" + sp.bmax + "</b> mL";
     $("hepBolusD").innerHTML = (h.bolusKg !== null ? "<b>" + fmt(h.bolusKg,1) + "</b> U/kg" : "") + (h.bolusMl !== null ? "　抽取 <b>" + fmt(h.bolusMl,2) + "</b> mL" : "");
     $("hepMaintD").innerHTML = (h.maintKg !== null ? "<b>" + fmt(h.maintKg,1) + "</b> U/kg/hr" : "") + (h.rateMl !== null ? "　幫浦 <b>" + fmt(h.rateMl,2) + "</b> mL/hr" : "") + (h.syrHrs ? "　一筒約 <b>" + fmt(h.syrHrs,1) + "</b> hr" : "");
 
@@ -761,7 +786,7 @@ pre.handover{white-space:pre-wrap;word-break:break-word;background:var(--surface
     if (st.ac === "肝素"){
       ac.push(["起始 Bolus", '<span class="num">' + fmt(h.bolus) + '</span> U' + (h.bolusKg !== null ? '（' + fmt(h.bolusKg,1) + ' U/kg）' : '') + (h.bolusMl !== null && h.bolus > 0 ? '，' + fmt(h.bolusMl,2) + ' mL' : '')]);
       ac.push(["維持滴注", '<span class="num">' + fmt(h.maint) + '</span> U/hr' + (h.maintKg !== null ? '（' + fmt(h.maintKg,1) + ' U/kg/hr）' : '')]);
-      ac.push(["注射筒", h.conc > 0 ? fmt(n(st.hepU)) + ' U / ' + fmt(n(st.hepMl)) + ' mL（' + fmt(h.conc) + ' U/mL）' : '未填']);
+      ac.push(["注射筒", (h.conc > 0 ? fmt(n(st.hepU)) + ' U / ' + fmt(n(st.hepMl)) + ' mL（' + fmt(h.conc) + ' U/mL）' : '未填') + '，' + fmt(n(st.hepSyr)) + ' mL 規格（' + sp.min + '–' + sp.max + ' mL/hr）']);
       ac.push(["幫浦速率", h.rateMl !== null ? '<span class="num">' + fmt(h.rateMl,2) + '</span> mL/hr' + (h.syrHrs ? '，一筒約 ' + fmt(h.syrHrs,1) + ' hr' : '') : '–']);
       ac.push(["監測目標", esc(st.hepTarget) || "依院內流程"]);
     } else if (st.ac === "RCA（枸櫞酸）"){
@@ -823,7 +848,7 @@ pre.handover{white-space:pre-wrap;word-break:break-word;background:var(--surface
     s += "</table>";
     s += "<h2>二、抗凝摘要（依院內流程）</h2><table>";
     if (st.ac === "肝素"){
-      s += row("抗凝方式", "肝素", "", "注射筒濃度", h.conc > 0 ? fmt(h.conc) : "–", "U/mL");
+      s += row("抗凝方式", "肝素", "", "注射筒濃度", h.conc > 0 ? fmt(h.conc) : "–", "U/mL（" + fmt(n(st.hepSyr)) + " mL 注射筒）");
       s += row("肝素 Bolus", fmt(h.bolus), "U" + (h.bolusMl !== null && h.bolus > 0 ? "（" + fmt(h.bolusMl,2) + " mL）" : ""), "肝素 維持", fmt(h.maint), "U/hr" + (h.rateMl !== null ? "（" + fmt(h.rateMl,2) + " mL/hr）" : ""));
       s += "<tr><th>監測目標</th><td colspan=5>" + (esc(st.hepTarget) || "依院內流程") + "</td></tr>";
     } else if (st.ac === "RCA（枸櫞酸）"){
