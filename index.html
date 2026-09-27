@@ -1,0 +1,905 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prismaflex CRRT 執行方案</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+:root{
+  --bg:#EBF1F2; --surface:#FFFFFF; --surface-2:#F4F8F9; --ink:#10242A; --muted:#566A70; --line:#D0DCDF; --line-2:#E2EAEC;
+  --accent:#0A6A7A; --accent-ink:#FFFFFF; --accent-soft:#DDEFF1;
+  --blood:#C0392B; --return:#2C6DB5; --pbp:#8C999D; --dial:#2A8A49; --rep:#7A48B0; --eff:#C59300; --hep:#C9650E;
+  --ok:#1E7443; --ok-bg:#E1F2E8; --warn:#8F5B00; --warn-bg:#FBEFD6; --crit:#B3261E; --crit-bg:#FBE3E1; --info:#2B5C86; --info-bg:#E3EDF6;
+  --shadow:0 1px 2px rgba(16,36,42,.06),0 4px 16px rgba(16,36,42,.05);
+  --num:"Barlow Semi Condensed","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --body:"Noto Sans TC","PingFang TC","Microsoft JhengHei","Heiti TC",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0C1618; --surface:#132226; --surface-2:#182A2F; --ink:#E2EEF0; --muted:#94AAAF; --line:#28403F; --line-2:#1F3336;
+    --accent:#4FC0CF; --accent-ink:#06262B; --accent-soft:#16373C;
+    --blood:#EE6A5C; --return:#6AA4EA; --pbp:#A9B6BA; --dial:#5BC47E; --rep:#B08BE3; --eff:#E8BF3A; --hep:#EE9A4E;
+    --ok:#6FD39A; --ok-bg:#16382A; --warn:#F2C15C; --warn-bg:#3A2E12; --crit:#FF8A80; --crit-bg:#431C1A; --info:#8DBBE6; --info-bg:#172E44;
+    --shadow:0 1px 2px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0C1618; --surface:#132226; --surface-2:#182A2F; --ink:#E2EEF0; --muted:#94AAAF; --line:#28403F; --line-2:#1F3336;
+  --accent:#4FC0CF; --accent-ink:#06262B; --accent-soft:#16373C;
+  --blood:#EE6A5C; --return:#6AA4EA; --pbp:#A9B6BA; --dial:#5BC47E; --rep:#B08BE3; --eff:#E8BF3A; --hep:#EE9A4E;
+  --ok:#6FD39A; --ok-bg:#16382A; --warn:#F2C15C; --warn-bg:#3A2E12; --crit:#FF8A80; --crit-bg:#431C1A; --info:#8DBBE6; --info-bg:#172E44;
+  --shadow:0 1px 2px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55;padding-inline:16px;padding-block:20px 40px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{text-wrap:balance;margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-family:var(--num);font-variant-numeric:tabular-nums}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 20px}
+.top h1{font-size:26px;font-weight:700;letter-spacing:.01em}
+.top h1 .num{font-weight:700;letter-spacing:.02em}
+.top p{margin:4px 0 0;color:var(--muted);font-size:13.5px;max-width:62ch}
+.top-actions{display:flex;flex-wrap:wrap;gap:8px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 14px;cursor:pointer;font-size:14px;font-weight:500;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.small{padding:5px 10px;font-size:13px}
+
+/* layout */
+.grid{display:grid;grid-template-columns:minmax(0,430px) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:960px){.grid{grid-template-columns:minmax(0,1fr)}}
+.col{display:flex;flex-direction:column;gap:18px;min-width:0}
+.sticky{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}
+@media (max-width:960px){.sticky{position:static}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow);min-width:0}
+.panel > h2{font-size:15px;font-weight:700;display:flex;align-items:baseline;gap:10px;margin-bottom:12px}
+.panel > h2 .tag{font-family:var(--num);font-weight:600;font-size:13px;color:var(--accent);letter-spacing:.08em}
+.panel > h2 .sub{margin-left:auto;font-size:12.5px;font-weight:400;color:var(--muted)}
+
+/* form */
+.fields{display:flex;flex-direction:column;gap:12px}
+.field{display:grid;grid-template-columns:132px minmax(0,1fr);gap:4px 12px;align-items:center}
+.field > label,.field > .lbl{font-size:14px;font-weight:500}
+.field .hint{grid-column:2;font-size:12.5px;color:var(--muted);line-height:1.45}
+@media (max-width:420px){.field{grid-template-columns:minmax(0,1fr)}.field .hint{grid-column:1}}
+.inp{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);overflow:hidden;min-width:0}
+.inp:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.inp input,.inp select{border:0;background:transparent;padding:7px 10px;min-width:0;width:100%;outline:none}
+.inp input[type=number]{font-family:var(--num);font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+.inp .u{padding:0 10px;display:flex;align-items:center;color:var(--muted);font-size:12.5px;border-left:1px solid var(--line-2);white-space:nowrap;background:var(--surface)}
+textarea.ta{width:100%;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);padding:8px 10px;resize:vertical;min-height:40px}
+textarea.ta:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.pt-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.pt-grid .inp input{font-size:14px}
+.pt-grid label{font-size:12.5px;color:var(--muted);display:block;margin-bottom:3px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;grid-column:2}
+@media (max-width:420px){.chips{grid-column:1}}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:2px 10px;font-size:12.5px;cursor:pointer;font-family:var(--num);font-weight:600}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--surface-2)}
+.seg label{position:relative;cursor:pointer;text-align:center;padding:7px 4px;font-size:13.5px;font-weight:600;border-left:1px solid var(--line-2)}
+.seg label:first-child{border-left:0}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label:has(input:checked){background:var(--accent);color:var(--accent-ink)}
+.seg label:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:-3px}
+.seg .num{font-size:15px;letter-spacing:.02em}
+.split{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);grid-column:2;margin-top:2px}
+@media (max-width:420px){.split{grid-column:1}}
+input[type=range]{width:100%;accent-color:var(--accent)}
+details.adv{border-top:1px dashed var(--line);padding-top:10px}
+details.adv summary{cursor:pointer;font-size:13.5px;font-weight:500;color:var(--accent)}
+details.adv[open] summary{margin-bottom:12px}
+.toggle{display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer}
+.toggle input{width:17px;height:17px;accent-color:var(--accent)}
+.derived{font-size:12.5px;color:var(--muted);grid-column:2}
+.derived b{color:var(--ink);font-family:var(--num);font-weight:600;font-size:14px}
+@media (max-width:420px){.derived{grid-column:1}}
+.subhead{font-size:12.5px;font-weight:700;color:var(--muted);letter-spacing:.06em;margin-top:4px}
+
+/* machine readout */
+.status{display:flex;align-items:center;gap:10px;border-radius:9px;padding:9px 12px;font-size:14px;font-weight:500}
+.status .dot{width:9px;height:9px;border-radius:50%;background:currentColor;flex:none}
+.st-ok{background:var(--ok-bg);color:var(--ok)}
+.st-warn{background:var(--warn-bg);color:var(--warn)}
+.st-crit{background:var(--crit-bg);color:var(--crit)}
+.readout{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+@media (max-width:620px){.readout{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tile{background:var(--surface);padding:11px 13px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.tile .k{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);font-weight:500}
+.tile .k .en{font-family:var(--num);letter-spacing:.04em;font-weight:500;font-size:12px;text-transform:uppercase}
+.clamp{width:14px;height:10px;border-radius:2px;flex:none;border:1px solid rgba(0,0,0,.18)}
+.tile .v{font-family:var(--num);font-weight:600;font-size:34px;line-height:1.05;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.tile .v small{font-size:13px;font-weight:500;color:var(--muted);margin-left:4px;letter-spacing:0}
+.tile .s{font-size:12.5px;color:var(--muted)}
+.tile .s b{font-family:var(--num);color:var(--ink);font-weight:600;font-size:14px}
+.tile.off .v{color:var(--muted);opacity:.55}
+.dose-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:12px}
+@media (max-width:620px){.dose-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.dose{border:1px solid var(--line-2);background:var(--surface-2);border-radius:9px;padding:9px 11px}
+.dose .k{font-size:12px;color:var(--muted)}
+.dose .v{font-family:var(--num);font-weight:600;font-size:23px;font-variant-numeric:tabular-nums;line-height:1.2}
+.dose .v small{font-size:12px;color:var(--muted);font-weight:500;margin-left:3px}
+.dose .v.good{color:var(--ok)} .dose .v.warn{color:var(--warn)} .dose .v.crit{color:var(--crit)}
+.note{font-size:12.5px;color:var(--muted);margin-top:10px}
+.circuit{overflow-x:auto;margin-top:12px;border:1px solid var(--line-2);border-radius:10px;background:var(--surface-2)}
+.circuit svg{display:block;min-width:560px;width:100%;height:auto}
+.circuit text{font-family:var(--num);fill:var(--ink)}
+.circuit .lbl{font-family:var(--body);fill:var(--muted);font-size:11px}
+
+/* checks */
+.checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+.checks li{display:flex;gap:10px;align-items:flex-start;padding:8px 11px;border-radius:8px;font-size:13.5px;line-height:1.5}
+.checks li .pill{flex:none;font-size:11.5px;font-weight:700;padding:1px 7px;border-radius:5px;margin-top:1px;letter-spacing:.04em}
+.lv-crit{background:var(--crit-bg)} .lv-crit .pill{background:var(--crit);color:var(--surface)}
+.lv-warn{background:var(--warn-bg)} .lv-warn .pill{background:var(--warn);color:var(--surface)}
+.lv-info{background:var(--info-bg)} .lv-info .pill{background:var(--info);color:var(--surface)}
+.lv-ok{background:var(--ok-bg)} .lv-ok .pill{background:var(--ok);color:var(--surface)}
+
+/* tables */
+.tbl-wrap{overflow-x:auto}
+table.t{border-collapse:collapse;width:100%;font-size:13.5px;min-width:520px}
+table.t th,table.t td{padding:8px 10px;border-bottom:1px solid var(--line-2);text-align:right;white-space:nowrap}
+table.t th{font-size:12px;color:var(--muted);font-weight:500;background:var(--surface-2)}
+table.t th:first-child,table.t td:first-child{text-align:left}
+table.t td.n{font-family:var(--num);font-weight:600;font-size:15px;font-variant-numeric:tabular-nums}
+table.t td .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:7px;vertical-align:0}
+table.t tr.total td{font-weight:700;border-bottom:0}
+
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+@media (max-width:760px){.two{grid-template-columns:minmax(0,1fr)}}
+dl.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:7px 14px;margin:0;font-size:14px}
+dl.kv dt{color:var(--muted)}
+dl.kv dd{margin:0;font-weight:500}
+dl.kv dd .num{font-size:16px;font-weight:600}
+.mon{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.mon label{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;cursor:pointer;padding:6px 8px;border-radius:7px}
+.mon label:hover{background:var(--surface-2)}
+.mon input{margin-top:4px;accent-color:var(--accent);flex:none}
+.mon input:checked + span{color:var(--muted);text-decoration:line-through}
+.mon .emph{font-weight:700}
+pre.handover{white-space:pre-wrap;word-break:break-word;background:var(--surface-2);border:1px solid var(--line-2);border-radius:9px;padding:12px 14px;font-family:var(--body);font-size:13px;line-height:1.6;margin:0;max-height:340px;overflow:auto}
+.row-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.toast{font-size:13px;color:var(--ok)}
+.foot{font-size:12.5px;color:var(--muted);line-height:1.6}
+.foot b{color:var(--ink)}
+
+/* mobile summary bar */
+.mbar{display:none}
+@media (max-width:960px){
+  body{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+  .mbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);padding:9px 16px calc(9px + env(safe-area-inset-bottom,0px));gap:14px;align-items:center;box-shadow:0 -4px 16px rgba(0,0,0,.08)}
+  .mbar .m{display:flex;flex-direction:column;line-height:1.15}
+  .mbar .m span{font-size:11px;color:var(--muted)}
+  .mbar .m b{font-family:var(--num);font-size:19px;font-weight:600}
+  .mbar .dotwrap{margin-left:auto}
+}
+
+/* print sheet */
+#printSheet{display:none}
+@media print{
+  @page{size:A4;margin:11mm}
+  html,body{background:#fff!important;color:#000!important}
+  body{padding:0!important;font-size:11.5pt}
+  .wrap,.mbar{display:none!important}
+  #printSheet{display:block;color:#000;font-family:var(--body)}
+  #printSheet h1{font-size:16pt;margin:0 0 2mm}
+  #printSheet h2{font-size:12pt;margin:5mm 0 2mm;border-bottom:1.2pt solid #000;padding-bottom:1mm}
+  #printSheet .rem{font-size:9pt;margin:0 0 3mm}
+  #printSheet table{border-collapse:collapse;width:100%}
+  #printSheet td,#printSheet th{border:0.6pt solid #555;padding:1.4mm 2mm;font-size:10.5pt;text-align:left;vertical-align:top}
+  #printSheet th{background:#eee;font-weight:700}
+  #printSheet td.v{font-family:var(--num);font-weight:700;font-size:12pt;text-align:right;white-space:nowrap}
+  #printSheet ul{margin:0;padding-left:5mm;font-size:10pt}
+  #printSheet .sig{display:flex;gap:10mm;margin-top:7mm;font-size:10.5pt}
+  #printSheet .sig div{flex:1;border-bottom:0.6pt solid #000;padding-bottom:6mm}
+  #printSheet .log{page-break-before:always}
+  #printSheet .log td,#printSheet .log th{font-size:8.5pt;padding:1.2mm 1mm;text-align:center;height:6.2mm}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1><span class="num">Prismaflex CRRT</span> 自動計算與執行方案 <span style="font-size:15px;font-weight:500;color:var(--muted)">肝素版</span></h1>
+      <p>以 Prismaflex 的「總濾出液 Effluent = 透析液 + 置換液 + PBP + 淨脫水」計算劑量。本工具僅供計算與摘要，實際處方、溶液種類與抗凝調整請依主治醫師醫囑與院內流程。</p>
+    </div>
+    <div class="top-actions">
+      <button class="btn" id="btnReset" type="button">恢復原表單預設值</button>
+      <button class="btn primary" id="btnPrint" type="button" hidden>列印執行方案</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- INPUT COLUMN -->
+    <div class="col">
+      <section class="panel" aria-labelledby="hPt">
+        <h2 id="hPt"><span class="tag">00</span>病人資料<span class="sub">僅列印用，不會儲存</span></h2>
+        <div class="pt-grid">
+          <div><label for="ptName">姓名</label><div class="inp"><input id="ptName" autocomplete="off"></div></div>
+          <div><label for="ptMrn">病歷號</label><div class="inp"><input id="ptMrn" autocomplete="off"></div></div>
+          <div><label for="ptBed">床號</label><div class="inp"><input id="ptBed" autocomplete="off"></div></div>
+          <div><label for="ptDate">日期</label><div class="inp"><input id="ptDate" type="date"></div></div>
+          <div><label for="ptMd">開立醫師</label><div class="inp"><input id="ptMd" autocomplete="off"></div></div>
+          <div><label for="ptRn">執行護理師</label><div class="inp"><input id="ptRn" autocomplete="off"></div></div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="hA">
+        <h2 id="hA"><span class="tag">A</span>病人與處方基本資料</h2>
+        <div class="fields">
+          <div class="field">
+            <label for="weight">體重</label>
+            <div class="inp"><input id="weight" type="number" inputmode="decimal" min="0" step="0.1"><span class="u">kg</span></div>
+            <div class="hint">實際或乾體重；用於劑量換算</div>
+          </div>
+          <div class="field">
+            <span class="lbl" id="modeLbl">治療模式</span>
+            <div class="seg" role="radiogroup" aria-labelledby="modeLbl">
+              <label><input type="radio" name="mode" id="modeHDF" value="CVVHDF"><span class="num">CVVHDF</span></label>
+              <label><input type="radio" name="mode" id="modeH" value="CVVH"><span class="num">CVVH</span></label>
+              <label><input type="radio" name="mode" id="modeHD" value="CVVHD"><span class="num">CVVHD</span></label>
+            </div>
+            <div class="hint" id="modeHint">CVVHDF：透析 + 置換</div>
+          </div>
+          <div class="field">
+            <label for="dose">目標劑量</label>
+            <div class="inp"><input id="dose" type="number" inputmode="decimal" min="0" step="0.5"><span class="u">mL/kg/hr</span></div>
+            <div class="chips" data-for="dose"><button type="button" class="chip" data-v="20">20</button><button type="button" class="chip" data-v="25">25</button><button type="button" class="chip" data-v="30">30</button><button type="button" class="chip" data-v="35">35</button></div>
+            <div class="hint">以總濾出液計算；KDIGO 建議實際給予 20–25，處方常需略高以補償停機時間</div>
+          </div>
+          <div class="field">
+            <label for="qb">血流量 Qb</label>
+            <div class="inp"><input id="qb" type="number" inputmode="numeric" min="0" step="10"><span class="u">mL/min</span></div>
+            <div class="hint">Prismaflex 常用 150–200；請依血路狀況調整</div>
+          </div>
+          <div class="field">
+            <label for="hours">預計治療時數</label>
+            <div class="inp"><input id="hours" type="number" inputmode="decimal" min="0" step="1"><span class="u">hr</span></div>
+            <div class="hint">用於估算本次治療耗液量與袋數</div>
+          </div>
+          <div class="field">
+            <label for="hct">Hct</label>
+            <div class="inp"><input id="hct" type="number" inputmode="decimal" min="0" max="80" step="1"><span class="u">%</span></div>
+            <div class="hint">新增：用來估算血漿流量、過濾分率 FF 與前稀釋校正劑量；請填最近一次數值</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="hB">
+        <h2 id="hB"><span class="tag">B</span>流量分配與淨脫水</h2>
+        <div class="fields">
+          <div class="field">
+            <label for="netuf">淨脫水 Net UF</label>
+            <div class="inp"><input id="netuf" type="number" inputmode="numeric" min="0" step="10"><span class="u">mL/hr</span></div>
+            <div class="derived" id="nufKg"></div>
+            <div class="hint">病人實際淨移除；由醫囑決定</div>
+          </div>
+          <div class="field" id="rowDratio">
+            <label for="dratio">透析液比例</label>
+            <div class="inp"><input id="dratio" type="number" inputmode="numeric" min="0" max="100" step="5"><span class="u">%</span></div>
+            <div class="chips" data-for="dratio"><button type="button" class="chip" data-v="25">25</button><button type="button" class="chip" data-v="50">50</button><button type="button" class="chip" data-v="75">75</button></div>
+            <div class="hint">僅 CVVHDF 使用；治療液中透析液所佔比例，其餘為置換液</div>
+          </div>
+          <div class="field" id="rowPre">
+            <label for="prepct">置換液 Pre 比例</label>
+            <input id="prepct" type="range" min="0" max="100" step="5" aria-describedby="preSplit">
+            <div class="split" id="preSplit"><span>Pre <b class="num" id="preLbl">70</b>%</span><span>Post <b class="num" id="postLbl">30</b>%</span></div>
+            <div class="hint">置換液內部的 Pre/Post 分配；建議 50–100% 依凝血風險（Post 自動 = 100 − Pre）</div>
+          </div>
+          <details class="adv" id="advBox">
+            <summary>進階：PBP、取整、袋量</summary>
+            <div class="fields">
+              <div class="field">
+                <label for="pbp">PBP 血泵前液</label>
+                <div class="inp"><input id="pbp" type="number" inputmode="numeric" min="0" step="10"><span class="u">mL/hr</span></div>
+                <div class="hint">肝素版通常為 0；若使用，PBP 計入 Effluent 與劑量，並從治療液中扣除</div>
+              </div>
+              <div class="field">
+                <span class="lbl">設定值取整</span>
+                <label class="toggle"><input type="checkbox" id="round10"> 取整至 10 mL/hr</label>
+                <div class="hint">方便直接輸入機器；實際劑量以取整後數值重算</div>
+              </div>
+              <div class="field">
+                <label for="bagFluid">透析/置換液袋</label>
+                <div class="inp"><input id="bagFluid" type="number" inputmode="numeric" min="0" step="500"><span class="u">mL/袋</span></div>
+              </div>
+              <div class="field">
+                <label for="bagEff">濾出液袋</label>
+                <div class="inp"><input id="bagEff" type="number" inputmode="numeric" min="0" step="500"><span class="u">mL/袋</span></div>
+                <div class="hint">用於估算換袋間隔與袋數；請依院內實際使用規格</div>
+              </div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="hC">
+        <h2 id="hC"><span class="tag">C</span>抗凝<span class="sub">依院內 protocol</span></h2>
+        <div class="fields">
+          <div class="field">
+            <span class="lbl" id="acLbl">抗凝方式</span>
+            <div class="seg" role="radiogroup" aria-labelledby="acLbl">
+              <label><input type="radio" name="ac" id="acNone" value="無">無</label>
+              <label><input type="radio" name="ac" id="acRca" value="RCA（枸櫞酸）">RCA</label>
+              <label><input type="radio" name="ac" id="acHep" value="肝素">肝素</label>
+            </div>
+          </div>
+
+          <div id="boxHep" class="fields">
+            <div class="field">
+              <label for="hepBolus">起始 Bolus</label>
+              <div class="inp"><input id="hepBolus" type="number" inputmode="numeric" min="0" step="100"><span class="u">U</span></div>
+              <div class="derived" id="hepBolusD"></div>
+            </div>
+            <div class="field">
+              <label for="hepMaint">維持滴注</label>
+              <div class="inp"><input id="hepMaint" type="number" inputmode="numeric" min="0" step="50"><span class="u">U/hr</span></div>
+              <div class="derived" id="hepMaintD"></div>
+            </div>
+            <div class="subhead">注射筒配製（換算 mL/hr）</div>
+            <div class="field">
+              <label for="hepU">肝素總量</label>
+              <div class="inp"><input id="hepU" type="number" inputmode="numeric" min="0" step="1000"><span class="u">U</span></div>
+            </div>
+            <div class="field">
+              <label for="hepMl">稀釋至</label>
+              <div class="inp"><input id="hepMl" type="number" inputmode="numeric" min="0" step="5"><span class="u">mL</span></div>
+              <div class="derived" id="hepConcD"></div>
+            </div>
+            <div class="subhead">依體重帶入（選用）</div>
+            <div class="field">
+              <label for="hepBolusKg">Bolus</label>
+              <div class="inp"><input id="hepBolusKg" type="number" inputmode="decimal" min="0" step="5" placeholder="依醫囑"><span class="u">U/kg</span></div>
+            </div>
+            <div class="field">
+              <label for="hepMaintKg">維持</label>
+              <div class="inp"><input id="hepMaintKg" type="number" inputmode="decimal" min="0" step="1" placeholder="依醫囑"><span class="u">U/kg/hr</span></div>
+              <div class="chips"><button type="button" class="btn small" id="btnHepKg">帶入 U 與 U/hr</button></div>
+            </div>
+            <div class="field">
+              <label for="hepTarget">監測目標</label>
+              <div class="inp"><input id="hepTarget" placeholder="例：aPTT 目標與抽血頻率（依院內流程）"></div>
+            </div>
+          </div>
+
+          <div id="boxRca" class="fields" hidden>
+            <div class="field">
+              <label for="rcaCit">枸櫞酸方案</label>
+              <div class="inp"><input id="rcaCit" placeholder="例：4% citrate；目標 iCa 依院內流程"></div>
+            </div>
+            <div class="field">
+              <label for="rcaCa">鈣回輸方案</label>
+              <div class="inp"><input id="rcaCa" placeholder="例：CaCl2 10% 或 Ca gluconate 10%"></div>
+            </div>
+            <div class="hint" style="grid-column:auto">RCA 常以 PBP 給予枸櫞酸，請在「進階」填入 PBP 流量，劑量才會正確。</div>
+          </div>
+
+          <div class="field">
+            <label for="notes">醫囑備註</label>
+            <textarea class="ta" id="notes" rows="2" placeholder="例：溶液種類、K/P 補充、特殊指示"></textarea>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- OUTPUT COLUMN -->
+    <div class="col">
+      <section class="panel sticky" aria-labelledby="hM">
+        <h2 id="hM"><span class="tag">01</span>機器設定值<span class="sub" id="modeBadge">CVVHDF</span></h2>
+        <div class="status st-ok" id="status" role="status"><span class="dot"></span><span id="statusTxt">OK</span></div>
+        <div class="readout" style="margin-top:12px">
+          <div class="tile" id="tBlood"><div class="k"><span class="clamp" style="background:var(--blood)"></span>血流量 <span class="en">Blood</span></div><div class="v"><span id="oQb">0</span><small>mL/min</small></div><div class="s">血漿流量 <b id="oQp">–</b> mL/hr</div></div>
+          <div class="tile" id="tPbp"><div class="k"><span class="clamp" style="background:var(--pbp)"></span>血泵前液 <span class="en">PBP</span></div><div class="v"><span id="oPbp">0</span><small>mL/hr</small></div><div class="s">不使用時為 0</div></div>
+          <div class="tile" id="tDial"><div class="k"><span class="clamp" style="background:var(--dial)"></span>透析液 <span class="en">Dialysate</span></div><div class="v"><span id="oQd">0</span><small>mL/hr</small></div><div class="s" id="oQdS">&nbsp;</div></div>
+          <div class="tile" id="tRep"><div class="k"><span class="clamp" style="background:var(--rep)"></span>置換液 <span class="en">Replacement</span></div><div class="v"><span id="oQr">0</span><small>mL/hr</small></div><div class="s">Pre <b id="oPre">0</b> ／ Post <b id="oPost">0</b></div></div>
+          <div class="tile" id="tUf"><div class="k"><span class="clamp" style="background:var(--surface-2)"></span>病人脫水 <span class="en">Pt Removal</span></div><div class="v"><span id="oNuf">0</span><small>mL/hr</small></div><div class="s" id="oNufS">&nbsp;</div></div>
+          <div class="tile" id="tEff"><div class="k"><span class="clamp" style="background:var(--eff)"></span>總濾出液 <span class="en">Effluent</span></div><div class="v"><span id="oEff">0</span><small>mL/hr</small></div><div class="s">目標 <b id="oEffT">0</b> mL/hr</div></div>
+        </div>
+        <div class="dose-row">
+          <div class="dose"><div class="k">目標劑量</div><div class="v"><span id="dT">0</span><small>mL/kg/hr</small></div></div>
+          <div class="dose"><div class="k">實際劑量</div><div class="v" id="dAwrap"><span id="dA">0</span><small>mL/kg/hr</small></div></div>
+          <div class="dose"><div class="k">前稀釋校正劑量</div><div class="v" id="dEwrap"><span id="dE">–</span><small>mL/kg/hr</small></div></div>
+          <div class="dose"><div class="k">過濾分率 FF</div><div class="v" id="dFwrap"><span id="dF">–</span><small>%</small></div></div>
+        </div>
+        <div class="circuit" aria-label="Prismaflex 管路示意圖與目前流量">
+          <svg viewBox="0 0 640 280" role="img" aria-labelledby="svgT">
+            <title id="svgT">管路示意：各流量進入管路的位置</title>
+            <defs>
+              <marker id="aBlood" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" style="fill:var(--blood)"/></marker>
+              <marker id="aRet" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" style="fill:var(--return)"/></marker>
+              <marker id="aPbp" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" style="fill:var(--pbp)"/></marker>
+              <marker id="aHep" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" style="fill:var(--hep)"/></marker>
+              <marker id="aRep" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" style="fill:var(--rep)"/></marker>
+              <marker id="aDial" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" style="fill:var(--dial)"/></marker>
+              <marker id="aEff" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" style="fill:var(--eff)"/></marker>
+            </defs>
+            <!-- patient -->
+            <rect x="14" y="108" width="62" height="64" rx="10" style="fill:var(--surface);stroke:var(--line)" stroke-width="1.5"/>
+            <text x="45" y="144" text-anchor="middle" class="lbl" style="font-size:13px;fill:var(--ink)">病人</text>
+            <!-- access (red) -->
+            <path d="M45,108 V66 H474" fill="none" style="stroke:var(--blood)" stroke-width="4" stroke-linecap="round"/>
+            <path d="M300,66 H330" fill="none" style="stroke:var(--blood)" stroke-width="4" marker-end="url(#aBlood)"/>
+            <text x="60" y="58" class="lbl">Access</text>
+            <!-- blood pump -->
+            <circle cx="196" cy="66" r="15" style="fill:var(--surface);stroke:var(--blood)" stroke-width="3"/>
+            <path d="M188,66 L202,60 L202,72z" style="fill:var(--blood)"/>
+            <text x="196" y="100" text-anchor="middle" style="font-size:13px;font-weight:600">Qb <tspan id="sQb">0</tspan></text>
+            <text x="196" y="114" text-anchor="middle" class="lbl">mL/min</text>
+            <!-- PBP -->
+            <g id="gPbp">
+              <path d="M128,24 V60" fill="none" style="stroke:var(--pbp)" stroke-width="3" marker-end="url(#aPbp)"/>
+              <text x="128" y="17" text-anchor="middle" style="font-size:12.5px;font-weight:600">PBP <tspan id="sPbp">0</tspan></text>
+            </g>
+            <!-- heparin -->
+            <g id="gHep">
+              <rect x="248" y="10" width="44" height="14" rx="3" style="fill:var(--surface);stroke:var(--hep)" stroke-width="1.5"/>
+              <path d="M270,24 V60" fill="none" style="stroke:var(--hep)" stroke-width="2.5" stroke-dasharray="4 3" marker-end="url(#aHep)"/>
+              <text x="300" y="21" style="font-size:12px;font-weight:600">肝素 <tspan id="sHep">0</tspan></text>
+            </g>
+            <!-- pre replacement -->
+            <g id="gPre">
+              <path d="M392,24 V60" fill="none" style="stroke:var(--rep)" stroke-width="3" marker-end="url(#aRep)"/>
+              <text x="392" y="17" text-anchor="middle" style="font-size:12.5px;font-weight:600">Pre <tspan id="sPre">0</tspan></text>
+            </g>
+            <!-- filter -->
+            <rect x="456" y="66" width="36" height="144" rx="8" style="fill:var(--surface);stroke:var(--ink)" stroke-width="1.8"/>
+            <path d="M464,78 V198 M474,78 V198 M484,78 V198" style="stroke:var(--line)" stroke-width="1.2"/>
+            <text x="446" y="142" text-anchor="end" class="lbl">濾器</text>
+            <!-- effluent out -->
+            <g id="gEff">
+              <path d="M492,88 H600" fill="none" style="stroke:var(--eff)" stroke-width="4" marker-end="url(#aEff)"/>
+              <text x="504" y="80" style="font-size:12.5px;font-weight:600">Effluent <tspan id="sEff">0</tspan></text>
+              <text x="504" y="106" class="lbl">含 Net UF <tspan id="sNuf">0</tspan></text>
+            </g>
+            <!-- dialysate in -->
+            <g id="gDial">
+              <path d="M626,186 H496" fill="none" style="stroke:var(--dial)" stroke-width="4" marker-end="url(#aDial)"/>
+              <text x="504" y="178" style="font-size:12.5px;font-weight:600">透析液 <tspan id="sQd">0</tspan></text>
+            </g>
+            <!-- return (blue) -->
+            <path d="M474,210 V236 H45 V172" fill="none" style="stroke:var(--return)" stroke-width="4" stroke-linecap="round"/>
+            <path d="M160,236 H130" fill="none" style="stroke:var(--return)" stroke-width="4" marker-end="url(#aRet)"/>
+            <text x="60" y="254" class="lbl">Return</text>
+            <!-- deaeration -->
+            <rect x="238" y="224" width="20" height="24" rx="4" style="fill:var(--surface);stroke:var(--return)" stroke-width="2"/>
+            <text x="248" y="264" text-anchor="middle" class="lbl">除氣室</text>
+            <!-- post replacement -->
+            <g id="gPost">
+              <path d="M360,274 V242" fill="none" style="stroke:var(--rep)" stroke-width="3" marker-end="url(#aRep)"/>
+              <text x="372" y="266" style="font-size:12.5px;font-weight:600">Post <tspan id="sPost">0</tspan></text>
+            </g>
+          </svg>
+        </div>
+        <div class="note" id="roundNote"></div>
+      </section>
+    </div>
+  </div>
+
+  <section class="panel" aria-labelledby="hChk">
+    <h2 id="hChk"><span class="tag">02</span>自動檢核</h2>
+    <ul class="checks" id="checks"></ul>
+  </section>
+
+  <section class="panel" aria-labelledby="hFluid">
+    <h2 id="hFluid"><span class="tag">03</span>耗液量與換袋估算<span class="sub" id="fluidSub"></span></h2>
+    <div class="tbl-wrap">
+      <table class="t">
+        <thead><tr><th>項目</th><th>流量 mL/hr</th><th>每袋可用</th><th id="thSess">本次 L</th><th>本次袋數</th><th>24 小時 L</th><th>24 小時袋數</th></tr></thead>
+        <tbody id="fluidBody"></tbody>
+      </table>
+    </div>
+    <div class="note">袋數 = 用量 ÷ 每袋容量後無條件進位；換袋間隔 = 每袋容量 ÷ 流量。實際更換時間會受停機、警報與治療中斷影響。</div>
+  </section>
+
+  <div class="two">
+    <section class="panel" aria-labelledby="hAc">
+      <h2 id="hAc"><span class="tag">04</span>抗凝摘要</h2>
+      <dl class="kv" id="acSummary"></dl>
+    </section>
+    <section class="panel" aria-labelledby="hMon">
+      <h2 id="hMon"><span class="tag">05</span>護理監測與調整<span class="sub">可逐項勾選（不儲存）</span></h2>
+      <ul class="mon" id="monList"></ul>
+    </section>
+  </div>
+
+  <section class="panel" aria-labelledby="hHo">
+    <h2 id="hHo"><span class="tag">06</span>交班文字</h2>
+    <pre class="handover" id="handover"></pre>
+    <div class="row-actions">
+      <button class="btn primary" type="button" id="btnCopy">複製交班文字</button>
+      <label class="toggle" id="logToggle" hidden><input type="checkbox" id="withLog" checked> 列印時附每小時記錄表</label>
+      <span class="toast" id="toast" role="status"></span>
+    </div>
+  </section>
+
+  <p class="foot"><b>計算方式</b>：目標 Effluent = 體重 × 目標劑量；治療液 = 目標 Effluent − Net UF − PBP；CVVHDF 依透析液比例分配，CVVH 全為置換液，CVVHD 全為透析液；置換液再依 Pre/Post 比例分配。實際劑量 = (透析液 + 置換液 + PBP + Net UF) ÷ 體重。血漿流量 Qp = Qb × 60 × (1 − Hct)；前稀釋校正係數 = Qp ÷ (Qp + Pre + PBP)；FF = (Pre + Post + PBP + Net UF) ÷ (Qp + Pre + PBP)。<br>本工具為計算與執行摘要工具，不取代醫囑；Prismaflex 各項設定範圍請依機型、套組與軟體版本確認。設定值（不含病人資料）會記在這台裝置的瀏覽器中。</p>
+</div>
+
+<div class="mbar" aria-hidden="true">
+  <div class="m"><span>Effluent</span><b id="mEff">0</b></div>
+  <div class="m"><span>實際劑量</span><b id="mDose">0</b></div>
+  <div class="m"><span>FF</span><b id="mFf">–</b></div>
+  <div class="dotwrap"><span class="status st-ok" id="mStatus" style="padding:5px 10px;font-size:13px"><span class="dot"></span><span id="mStatusTxt">OK</span></span></div>
+</div>
+
+<div id="printSheet"></div>
+
+<script>
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+  var STORE = "prismaflex-crrt-heparin-v1";
+  // Defaults = values in the original spreadsheet's 輸入表單 (plus new fields)
+  var DEFAULTS = {
+    weight:60, mode:"CVVHDF", dose:25, qb:180, hours:24, hct:30,
+    netuf:100, dratio:50, prepct:70, pbp:0, round10:true, bagFluid:5000, bagEff:5000,
+    ac:"肝素", hepBolus:0, hepMaint:0, hepU:25000, hepMl:50, hepBolusKg:"", hepMaintKg:"", hepTarget:"",
+    rcaCit:"院內RCA流程", rcaCa:"院內鈣回輸流程", notes:""
+  };
+  var NUM_KEYS = ["weight","dose","qb","hours","hct","netuf","dratio","prepct","pbp","bagFluid","bagEff","hepBolus","hepMaint","hepU","hepMl","hepBolusKg","hepMaintKg"];
+  var TEXT_KEYS = ["hepTarget","rcaCit","rcaCa","notes"];
+  var PT_KEYS = ["ptName","ptMrn","ptBed","ptDate","ptMd","ptRn"];
+
+  function load(){
+    var s = {};
+    try { s = JSON.parse(localStorage.getItem(STORE) || "{}") || {}; } catch(e){ s = {}; }
+    var o = {}; for (var k in DEFAULTS) o[k] = (k in s) ? s[k] : DEFAULTS[k];
+    return o;
+  }
+  function save(st){ try { localStorage.setItem(STORE, JSON.stringify(st)); } catch(e){} }
+
+  function apply(st){
+    NUM_KEYS.concat(TEXT_KEYS).forEach(function(k){ $(k).value = st[k] === null ? "" : st[k]; });
+    $("round10").checked = !!st.round10;
+    document.querySelectorAll('input[name=mode]').forEach(function(r){ r.checked = r.value === st.mode; });
+    document.querySelectorAll('input[name=ac]').forEach(function(r){ r.checked = r.value === st.ac; });
+  }
+  function read(){
+    var st = {};
+    NUM_KEYS.forEach(function(k){ var v = $(k).value; st[k] = v === "" ? "" : parseFloat(v); });
+    TEXT_KEYS.forEach(function(k){ st[k] = $(k).value; });
+    st.round10 = $("round10").checked;
+    var m = document.querySelector('input[name=mode]:checked'); st.mode = m ? m.value : "CVVHDF";
+    var a = document.querySelector('input[name=ac]:checked'); st.ac = a ? a.value : "無";
+    return st;
+  }
+  function n(v){ var x = parseFloat(v); return isFinite(x) ? x : 0; }
+  function has(v){ return v !== "" && v !== null && isFinite(parseFloat(v)); }
+  function fmt(v, d){ if (v === null || !isFinite(v)) return "–"; return Number(v).toLocaleString("en-US",{minimumFractionDigits:d||0, maximumFractionDigits:d||0}); }
+  function r10(x){ return Math.round(x/10)*10; }
+  function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+  function hrs(h){ if (!isFinite(h) || h <= 0) return "–"; if (h >= 100) return "> 99 hr"; return fmt(h,1) + " hr"; }
+
+  function calc(st){
+    var W = n(st.weight), dose = n(st.dose), qb = n(st.qb), H = n(st.hours), nuf = n(st.netuf);
+    var pbp = n(st.pbp), ratio = Math.min(Math.max(n(st.dratio),0),100), prep = Math.min(Math.max(n(st.prepct),0),100);
+    var target = W * dose;
+    var treat = Math.max(target - nuf - pbp, 0);
+    var qd, qr;
+    if (st.mode === "CVVHD"){ qd = treat; qr = 0; }
+    else if (st.mode === "CVVH"){ qd = 0; qr = treat; }
+    else { qd = treat * ratio / 100; qr = treat - qd; }
+    var pre = st.mode === "CVVHD" ? 0 : qr * prep / 100;
+    var post = qr - pre;
+    var raw = {qd:qd, pre:pre, post:post};
+    if (st.round10){ qd = r10(qd); pre = r10(pre); post = r10(post); pbp = r10(pbp); nuf = r10(nuf); }
+    qr = pre + post;
+    var eff = qd + qr + pbp + nuf;
+    var actual = W > 0 ? eff / W : 0;
+    var hctOk = has(st.hct) && n(st.hct) > 5 && n(st.hct) < 75;
+    var qp = hctOk ? qb * 60 * (1 - n(st.hct)/100) : null;
+    var pdf = (qp && qp > 0) ? qp / (qp + pre + pbp) : null;
+    var effDose = pdf !== null ? actual * pdf : null;
+    var ff = (qp && qp > 0) ? (pre + post + pbp + nuf) / (qp + pre + pbp) * 100 : null;
+    var conc = n(st.hepMl) > 0 ? n(st.hepU) / n(st.hepMl) : 0;
+    var hep = {
+      bolus:n(st.hepBolus), maint:n(st.hepMaint), conc:conc,
+      bolusMl: conc > 0 ? n(st.hepBolus)/conc : null,
+      rateMl: conc > 0 ? n(st.hepMaint)/conc : null,
+      bolusKg: W > 0 ? n(st.hepBolus)/W : null,
+      maintKg: W > 0 ? n(st.hepMaint)/W : null
+    };
+    hep.syrHrs = (hep.rateMl && hep.rateMl > 0) ? n(st.hepMl) / hep.rateMl : null;
+    return {W:W, dose:dose, qb:qb, H:H, nuf:nuf, pbp:pbp, target:target, treat:treat, qd:qd, qr:qr, pre:pre, post:post,
+      prePct: qr > 0 ? pre/qr*100 : 0, eff:eff, actual:actual, qp:qp, pdf:pdf, effDose:effDose, ff:ff, hep:hep, raw:raw,
+      nufKg: W > 0 ? nuf/W : null, mode:st.mode, ac:st.ac, st:st};
+  }
+
+  function checks(r){
+    var st = r.st, L = [];
+    function add(lv, t){ L.push({lv:lv, t:t}); }
+    if (!(r.W > 0)) add("crit", "請輸入體重，否則無法換算劑量。");
+    if (!(r.dose > 0)) add("crit", "請輸入目標劑量。");
+    if (r.W > 0 && r.dose > 0 && r.target - r.nuf - r.pbp <= 0)
+      add("crit", "目標 Effluent（" + fmt(r.target) + " mL/hr）≤ Net UF + PBP，無法分配透析液/置換液。請提高目標劑量或降低 Net UF / PBP。");
+    if (!(r.qb > 0)) add("crit", "請輸入血流量 Qb。");
+    else if (r.qb < 100 || r.qb > 300) add("warn", "Qb " + fmt(r.qb) + " mL/min 超出一般 CRRT 範圍（約 100–300），請再次確認。");
+    else if (r.qb < 150 || r.qb > 200) add("info", "Qb " + fmt(r.qb) + " mL/min 不在 Prismaflex 常用的 150–200 範圍，請確認血路狀況與醫囑。");
+    if (r.W > 0 && r.eff > 0){
+      if (r.actual < 20) add("warn", "實際劑量 " + fmt(r.actual,1) + " mL/kg/hr 低於 KDIGO 建議的 20–25 mL/kg/hr。");
+      else if (r.actual > 35) add("info", "實際劑量 " + fmt(r.actual,1) + " mL/kg/hr 偏高（> 35），請確認醫囑；高劑量可能增加電解質與藥物移除。");
+      if (r.effDose !== null && r.actual >= 20 && r.effDose < 20) add("info", "考量前稀釋後的有效劑量約 " + fmt(r.effDose,1) + " mL/kg/hr，低於 20；如需達標可提高處方劑量或增加 Post 比例。");
+    }
+    if (r.ff === null) add("info", "未填 Hct，無法估算 FF 與前稀釋校正劑量。");
+    else if (r.ff > 25) add("warn", "過濾分率 FF " + fmt(r.ff,1) + "% > 25%，濾器凝血風險高。可提高 Qb、增加 Pre 比例或提高 CVVHDF 透析液比例。");
+    else if (r.ff > 20) add("info", "過濾分率 FF " + fmt(r.ff,1) + "% 介於 20–25%，請留意濾器凝血。");
+    if (r.nufKg !== null && r.nufKg > 1.75) add("info", "淨脫水 " + fmt(r.nufKg,2) + " mL/kg/hr（> 1.75）屬較高強度，請密切觀察血行動力學。");
+    if (st.mode === "CVVHDF" && (n(st.dratio) === 0 || n(st.dratio) === 100)) add("info", "透析液比例 " + fmt(n(st.dratio)) + "% 實際上等同 " + (n(st.dratio) === 0 ? "CVVH" : "CVVHD") + "。");
+    if (st.ac === "無" && st.mode !== "CVVHD" && r.qr > 0 && r.prePct < 50) add("info", "無抗凝時，可考慮提高置換液 Pre 比例（原表單建議 50–100%）以降低凝血。");
+    if (st.ac === "肝素"){
+      if (!(r.hep.maint > 0)) add("info", "已選擇肝素，但維持劑量為 0 U/hr，請確認醫囑。");
+      if (r.hep.maint > 0 && !(r.hep.conc > 0)) add("warn", "請填寫肝素注射筒配製（總量與稀釋體積），才能換算 mL/hr。");
+      if (r.hep.rateMl !== null && r.hep.maint > 0 && (r.hep.rateMl < 0.5 || r.hep.rateMl > 5))
+        add("warn", "肝素幫浦速率 " + fmt(r.hep.rateMl,2) + " mL/hr 可能超出 Prismaflex 注射筒幫浦常見連續輸注範圍（約 0.5–5 mL/hr，依機型與軟體版本確認）；可調整稀釋濃度。");
+    }
+    if (st.ac === "RCA（枸櫞酸）" && !(r.pbp > 0)) add("info", "RCA 通常以 PBP 給予枸櫞酸；目前 PBP 為 0，劑量計算未含枸櫞酸流量。");
+    if (st.round10 && (Math.abs(r.raw.qd - r.qd) >= 1 || Math.abs(r.raw.pre - r.pre) >= 1 || Math.abs(r.raw.post - r.post) >= 1))
+      add("info", "設定值已取整至 10 mL/hr，實際劑量依取整後數值重算。");
+    if (!(r.H > 0)) add("warn", "請輸入預計治療時數。");
+    if (!L.some(function(x){ return x.lv === "crit" || x.lv === "warn"; })) L.unshift({lv:"ok", t:"處方分配合理，無需特別處理的警示。"});
+    return L;
+  }
+
+  function monItems(r){
+    var items = [
+      "壓力監測：Access / Return / Effluent / TMP；確認警報與管路扭曲。",
+      "濾器凝血：回血壓升高、TMP 上升、Effluent 下降時依流程處理。",
+      "體液：每小時記錄 Net UF、血壓、尿量（若有）。",
+      "電解質/酸鹼：依醫囑抽血（RCA 需加強 iCa / TCa/iCa 比值監控）。",
+      "耗液：依耗液估算準備透析液與置換液；交接時確認剩餘量。"
+    ];
+    var extra = null;
+    if (r.ac === "肝素") extra = "肝素：依醫囑監測 aPTT/ACT；注意出血徵象與血小板變化（HIT）；更換注射筒時確認濃度與速率。";
+    else if (r.ac === "RCA（枸櫞酸）") extra = "RCA：監測系統 iCa、濾器後 iCa 與 TCa/iCa 比值；注意枸櫞酸蓄積與代謝性鹼中毒。";
+    else extra = "無抗凝：優先前稀釋、減少中斷與警報停機時間，留意濾器壽命。";
+    return {items:items, extra:extra};
+  }
+
+  var lastR = null;
+
+  function render(){
+    var st = read(); save(st);
+    var r = calc(st); lastR = r;
+    var isHD = st.mode === "CVVHD", isH = st.mode === "CVVH";
+    $("modeHint").textContent = isHD ? "CVVHD：僅透析液（擴散）" : isH ? "CVVH：僅置換液（對流）" : "CVVHDF：透析液 + 置換液";
+    $("modeBadge").textContent = st.mode;
+    $("rowDratio").hidden = st.mode !== "CVVHDF";
+    $("rowPre").hidden = isHD;
+    $("preLbl").textContent = fmt(n(st.prepct)); $("postLbl").textContent = fmt(100 - n(st.prepct));
+    $("nufKg").innerHTML = r.nufKg !== null ? "= <b>" + fmt(r.nufKg,2) + "</b> mL/kg/hr" : "";
+    $("boxHep").hidden = st.ac !== "肝素";
+    $("boxRca").hidden = st.ac !== "RCA（枸櫞酸）";
+    if (st.ac === "RCA（枸櫞酸）" || n(st.pbp) > 0) $("advBox").open = true;
+
+    // heparin derived
+    var h = r.hep;
+    $("hepConcD").innerHTML = h.conc > 0 ? "濃度 <b>" + fmt(h.conc) + "</b> U/mL" : "請填寫以換算 mL";
+    $("hepBolusD").innerHTML = (h.bolusKg !== null ? "<b>" + fmt(h.bolusKg,1) + "</b> U/kg" : "") + (h.bolusMl !== null ? "　抽取 <b>" + fmt(h.bolusMl,2) + "</b> mL" : "");
+    $("hepMaintD").innerHTML = (h.maintKg !== null ? "<b>" + fmt(h.maintKg,1) + "</b> U/kg/hr" : "") + (h.rateMl !== null ? "　幫浦 <b>" + fmt(h.rateMl,2) + "</b> mL/hr" : "") + (h.syrHrs ? "　一筒約 <b>" + fmt(h.syrHrs,1) + "</b> hr" : "");
+
+    // chips state
+    document.querySelectorAll(".chips[data-for]").forEach(function(g){
+      var v = n($(g.getAttribute("data-for")).value);
+      g.querySelectorAll(".chip").forEach(function(c){ c.setAttribute("aria-pressed", String(n(c.getAttribute("data-v")) === v)); });
+    });
+
+    // readout
+    $("oQb").textContent = fmt(r.qb); $("oQp").textContent = r.qp !== null ? fmt(r.qp) : "–";
+    $("oPbp").textContent = fmt(r.pbp); $("tPbp").classList.toggle("off", !(r.pbp > 0));
+    $("oQd").textContent = fmt(r.qd); $("tDial").classList.toggle("off", !(r.qd > 0));
+    $("oQdS").innerHTML = r.qd > 0 && r.qb > 0 ? "Qd / Qb = <b>" + fmt(r.qd/(r.qb*60)*100,1) + "</b>%" : (isH ? "CVVH 不使用" : "&nbsp;");
+    $("oQr").textContent = fmt(r.qr); $("tRep").classList.toggle("off", !(r.qr > 0));
+    $("oPre").textContent = fmt(r.pre); $("oPost").textContent = fmt(r.post);
+    $("oNuf").textContent = fmt(r.nuf); $("oNufS").innerHTML = r.nufKg !== null ? "<b>" + fmt(r.nufKg,2) + "</b> mL/kg/hr" : "&nbsp;";
+    $("oEff").textContent = fmt(r.eff); $("oEffT").textContent = fmt(r.target);
+    $("dT").textContent = fmt(r.dose,1); $("dA").textContent = fmt(r.actual,1);
+    $("dE").textContent = r.effDose !== null ? fmt(r.effDose,1) : "–";
+    $("dF").textContent = r.ff !== null ? fmt(r.ff,1) : "–";
+    $("dAwrap").className = "v " + (r.actual <= 0 ? "" : r.actual < 20 ? "warn" : "good");
+    $("dEwrap").className = "v " + (r.effDose === null ? "" : r.effDose < 20 ? "warn" : "good");
+    $("dFwrap").className = "v " + (r.ff === null ? "" : r.ff > 25 ? "crit" : r.ff > 20 ? "warn" : "good");
+    $("roundNote").textContent = st.round10 ? "設定值已取整至 10 mL/hr。" + (r.W > 0 ? "取整前：透析液 " + fmt(r.raw.qd) + "、Pre " + fmt(r.raw.pre) + "、Post " + fmt(r.raw.post) + " mL/hr。" : "") : "未取整，顯示原始計算值。";
+
+    // circuit
+    $("sQb").textContent = fmt(r.qb); $("sPbp").textContent = fmt(r.pbp); $("sPre").textContent = fmt(r.pre);
+    $("sPost").textContent = fmt(r.post); $("sQd").textContent = fmt(r.qd); $("sEff").textContent = fmt(r.eff); $("sNuf").textContent = fmt(r.nuf);
+    $("sHep").textContent = st.ac === "肝素" && h.rateMl !== null ? fmt(h.rateMl,2) + " mL/hr" : "—";
+    [["gPbp", r.pbp > 0], ["gPre", r.pre > 0], ["gPost", r.post > 0], ["gDial", r.qd > 0], ["gHep", st.ac === "肝素" && h.maint > 0], ["gEff", r.eff > 0]].forEach(function(p){ $(p[0]).style.opacity = p[1] ? 1 : 0.22; });
+
+    // checks + status
+    var L = checks(r);
+    var tag = {crit:"必須處理", warn:"注意", info:"提示", ok:"OK"};
+    $("checks").innerHTML = L.map(function(x){ return '<li class="lv-' + x.lv + '"><span class="pill">' + tag[x.lv] + '</span><span>' + esc(x.t) + '</span></li>'; }).join("");
+    var nc = L.filter(function(x){ return x.lv === "crit"; }).length, nw = L.filter(function(x){ return x.lv === "warn"; }).length;
+    var cls = nc ? "st-crit" : nw ? "st-warn" : "st-ok";
+    var txt = nc ? nc + " 項必須處理" + (nw ? "、" + nw + " 項注意" : "") : nw ? nw + " 項需注意" : "OK：處方分配合理";
+    $("status").className = "status " + cls; $("statusTxt").textContent = txt;
+    $("mStatus").className = "status " + cls; $("mStatusTxt").textContent = nc ? "必須處理" : nw ? "注意" : "OK";
+    $("mEff").textContent = fmt(r.eff); $("mDose").textContent = fmt(r.actual,1); $("mFf").textContent = r.ff !== null ? fmt(r.ff,1) + "%" : "–";
+
+    // fluids
+    var H = r.H, bF = n(st.bagFluid), bE = n(st.bagEff);
+    $("thSess").textContent = "本次 " + (H > 0 ? fmt(H, H % 1 ? 1 : 0) + " hr" : "") + " L";
+    $("fluidSub").textContent = H > 0 ? "本次 " + fmt(H, H % 1 ? 1 : 0) + " 小時 ／ 24 小時" : "";
+    var rows = [
+      {name:"透析液", c:"var(--dial)", rate:r.qd, bag:bF, show:!isH},
+      {name:"置換液", c:"var(--rep)", rate:r.qr, bag:bF, show:!isHD},
+      {name:"PBP", c:"var(--pbp)", rate:r.pbp, bag:bF, show:r.pbp > 0},
+      {name:"Net UF（淨脫水）", c:"var(--surface-2)", rate:r.nuf, bag:0, show:true},
+      {name:"總濾出液 Effluent", c:"var(--eff)", rate:r.eff, bag:bE, show:true, total:true}
+    ];
+    function bags(ml, bag){ return bag > 0 && ml > 0 ? Math.ceil(ml / bag - 1e-9) : null; }
+    $("fluidBody").innerHTML = rows.filter(function(x){ return x.show; }).map(function(x){
+      var sess = x.rate * H, day = x.rate * 24;
+      var sb = bags(sess, x.bag), db = bags(day, x.bag);
+      return '<tr' + (x.total ? ' class="total"' : '') + '><td><span class="sw" style="background:' + x.c + ';border:1px solid var(--line)"></span>' + x.name + '</td>' +
+        '<td class="n">' + fmt(x.rate) + '</td>' +
+        '<td>' + (x.bag > 0 && x.rate > 0 ? "每 " + hrs(x.bag / x.rate) : "–") + '</td>' +
+        '<td class="n">' + fmt(sess/1000,1) + '</td>' +
+        '<td class="n">' + (sb !== null ? sb + " 袋" : "–") + '</td>' +
+        '<td class="n">' + fmt(day/1000,1) + '</td>' +
+        '<td class="n">' + (db !== null ? db + " 袋" : "–") + '</td></tr>';
+    }).join("");
+
+    // anticoag summary
+    var ac = [];
+    ac.push(["抗凝方式", esc(st.ac)]);
+    if (st.ac === "肝素"){
+      ac.push(["起始 Bolus", '<span class="num">' + fmt(h.bolus) + '</span> U' + (h.bolusKg !== null ? '（' + fmt(h.bolusKg,1) + ' U/kg）' : '') + (h.bolusMl !== null && h.bolus > 0 ? '，' + fmt(h.bolusMl,2) + ' mL' : '')]);
+      ac.push(["維持滴注", '<span class="num">' + fmt(h.maint) + '</span> U/hr' + (h.maintKg !== null ? '（' + fmt(h.maintKg,1) + ' U/kg/hr）' : '')]);
+      ac.push(["注射筒", h.conc > 0 ? fmt(n(st.hepU)) + ' U / ' + fmt(n(st.hepMl)) + ' mL（' + fmt(h.conc) + ' U/mL）' : '未填']);
+      ac.push(["幫浦速率", h.rateMl !== null ? '<span class="num">' + fmt(h.rateMl,2) + '</span> mL/hr' + (h.syrHrs ? '，一筒約 ' + fmt(h.syrHrs,1) + ' hr' : '') : '–']);
+      ac.push(["監測目標", esc(st.hepTarget) || "依院內流程"]);
+    } else if (st.ac === "RCA（枸櫞酸）"){
+      ac.push(["RCA 方案", esc(st.rcaCit) || "依院內流程"]);
+      ac.push(["鈣回輸方案", esc(st.rcaCa) || "依院內流程"]);
+      ac.push(["PBP", '<span class="num">' + fmt(r.pbp) + '</span> mL/hr']);
+    } else {
+      ac.push(["說明", "未使用抗凝；置換液 Pre 比例 " + fmt(r.prePct) + "%"]);
+    }
+    if (st.notes) ac.push(["醫囑備註", esc(st.notes)]);
+    $("acSummary").innerHTML = ac.map(function(p){ return "<dt>" + p[0] + "</dt><dd>" + p[1] + "</dd>"; }).join("");
+
+    // monitoring
+    var m = monItems(r);
+    var old = {}; document.querySelectorAll("#monList input").forEach(function(i){ old[i.id] = i.checked; });
+    $("monList").innerHTML = m.items.map(function(t, i){
+      return '<li><label><input type="checkbox" id="mon' + i + '"' + (old["mon"+i] ? " checked" : "") + '><span>' + esc(t) + '</span></label></li>';
+    }).join("") + '<li><label><input type="checkbox" id="monX"' + (old.monX ? " checked" : "") + '><span class="emph">' + esc(m.extra) + '</span></label></li>';
+
+    $("handover").textContent = handoverText(r, L);
+    renderPrint(r, L);
+  }
+
+  function handoverText(r, L){
+    var st = r.st, h = r.hep, out = [];
+    var who = [$("ptBed").value && ("床號 " + $("ptBed").value), $("ptName").value, $("ptMrn").value && ("病歷號 " + $("ptMrn").value)].filter(Boolean).join("　");
+    out.push("【Prismaflex CRRT 執行方案】" + (who ? "　" + who : ""));
+    out.push("模式 " + st.mode + "｜體重 " + fmt(r.W,1) + " kg｜目標劑量 " + fmt(r.dose,1) + " mL/kg/hr｜治療 " + fmt(r.H, r.H % 1 ? 1 : 0) + " hr");
+    out.push("Qb " + fmt(r.qb) + " mL/min｜PBP " + fmt(r.pbp) + "｜透析液 " + fmt(r.qd) + "｜置換液 " + fmt(r.qr) + "（Pre " + fmt(r.pre) + " / Post " + fmt(r.post) + "）｜Net UF " + fmt(r.nuf) + " mL/hr");
+    out.push("Effluent " + fmt(r.eff) + " mL/hr｜實際劑量 " + fmt(r.actual,1) + " mL/kg/hr" + (r.effDose !== null ? "｜前稀釋校正 " + fmt(r.effDose,1) : "") + (r.ff !== null ? "｜FF " + fmt(r.ff,1) + "%" : ""));
+    if (st.ac === "肝素") out.push("抗凝：肝素 Bolus " + fmt(h.bolus) + " U，維持 " + fmt(h.maint) + " U/hr" + (h.rateMl !== null ? "（" + fmt(h.rateMl,2) + " mL/hr，" + fmt(h.conc) + " U/mL）" : "") + (st.hepTarget ? "；監測：" + st.hepTarget : ""));
+    else if (st.ac === "RCA（枸櫞酸）") out.push("抗凝：RCA｜" + (st.rcaCit || "院內流程") + "｜鈣回輸：" + (st.rcaCa || "院內流程"));
+    else out.push("抗凝：無");
+    out.push("24 小時耗液：透析液 " + fmt(r.qd*24/1000,1) + " L、置換液 " + fmt(r.qr*24/1000,1) + " L" + (r.pbp > 0 ? "、PBP " + fmt(r.pbp*24/1000,1) + " L" : "") + "、Net UF " + fmt(r.nuf*24/1000,1) + " L、Effluent " + fmt(r.eff*24/1000,1) + " L");
+    var issues = L.filter(function(x){ return x.lv === "crit" || x.lv === "warn"; });
+    if (issues.length) out.push("注意：" + issues.map(function(x){ return x.t; }).join("；"));
+    if (st.notes) out.push("備註：" + st.notes);
+    return out.join("\n");
+  }
+
+  function renderPrint(r, L){
+    var st = r.st, h = r.hep, H = r.H;
+    var pt = {}; PT_KEYS.forEach(function(k){ pt[k] = esc($(k).value); });
+    function row(a, av, au, b, bv, bu){ return "<tr><th>" + a + "</th><td class=v>" + av + "</td><td>" + (au||"") + "</td><th>" + b + "</th><td class=v>" + bv + "</td><td>" + (bu||"") + "</td></tr>"; }
+    var m = monItems(r);
+    var hh = H > 0 ? fmt(H, H % 1 ? 1 : 0) : "–";
+    var s = "";
+    s += "<h1>Prismaflex CRRT 執行方案（肝素版）</h1>";
+    s += "<p class=rem>提醒：本表單為計算與執行摘要工具；實際處方、溶液種類與抗凝調整請依主治醫師醫囑與院內流程。</p>";
+    s += "<table><tr><th>姓名</th><td>" + pt.ptName + "</td><th>病歷號</th><td>" + pt.ptMrn + "</td><th>床號</th><td>" + pt.ptBed + "</td><th>日期</th><td>" + pt.ptDate + "</td></tr></table>";
+    s += "<h2>一、機器設定值（Prismaflex）</h2><table>";
+    s += row("血流量 Qb", fmt(r.qb), "mL/min", "治療模式", st.mode, "");
+    s += row("透析液 Qd", fmt(r.qd), "mL/hr", "置換液總量 Qr", fmt(r.qr), "mL/hr");
+    s += row("置換液 Pre", fmt(r.pre), "mL/hr", "置換液 Post", fmt(r.post), "mL/hr");
+    s += row("病人淨脫水（Patient Removal）", fmt(r.nuf), "mL/hr", "總濾出液 Effluent", fmt(r.eff), "mL/hr");
+    s += row("PBP", fmt(r.pbp), "mL/hr", "體重", fmt(r.W,1), "kg");
+    s += row("目標劑量", fmt(r.dose,1), "mL/kg/hr", "實際劑量", fmt(r.actual,1), "mL/kg/hr");
+    s += row("前稀釋校正劑量", r.effDose !== null ? fmt(r.effDose,1) : "–", "mL/kg/hr", "過濾分率 FF", r.ff !== null ? fmt(r.ff,1) : "–", "%（Hct " + (has(st.hct) ? fmt(n(st.hct)) : "–") + "%）");
+    s += "</table>";
+    s += "<h2>二、抗凝摘要（依院內流程）</h2><table>";
+    if (st.ac === "肝素"){
+      s += row("抗凝方式", "肝素", "", "注射筒濃度", h.conc > 0 ? fmt(h.conc) : "–", "U/mL");
+      s += row("肝素 Bolus", fmt(h.bolus), "U" + (h.bolusMl !== null && h.bolus > 0 ? "（" + fmt(h.bolusMl,2) + " mL）" : ""), "肝素 維持", fmt(h.maint), "U/hr" + (h.rateMl !== null ? "（" + fmt(h.rateMl,2) + " mL/hr）" : ""));
+      s += "<tr><th>監測目標</th><td colspan=5>" + (esc(st.hepTarget) || "依院內流程") + "</td></tr>";
+    } else if (st.ac === "RCA（枸櫞酸）"){
+      s += "<tr><th>抗凝方式</th><td colspan=5>RCA（枸櫞酸）</td></tr><tr><th>RCA 方案</th><td colspan=5>" + esc(st.rcaCit) + "</td></tr><tr><th>鈣回輸方案</th><td colspan=5>" + esc(st.rcaCa) + "</td></tr>";
+    } else {
+      s += "<tr><th>抗凝方式</th><td colspan=5>無</td></tr>";
+    }
+    if (st.notes) s += "<tr><th>醫囑備註</th><td colspan=5>" + esc(st.notes) + "</td></tr>";
+    s += "</table>";
+    s += "<h2>三、護理監測與調整（建議清單）</h2><ul>" + m.items.concat([m.extra]).map(function(t){ return "<li>" + esc(t) + "</li>"; }).join("") + "</ul>";
+    var issues = L.filter(function(x){ return x.lv !== "ok"; });
+    if (issues.length) s += "<h2>自動檢核</h2><ul>" + issues.map(function(x){ return "<li>" + esc(x.t) + "</li>"; }).join("") + "</ul>";
+    s += "<h2>四、耗液量估算</h2><table><tr><th>項目</th><th>mL/hr</th><th>本次 " + hh + " hr（L）</th><th>本次袋數</th><th>24 小時（L）</th><th>24 小時袋數</th></tr>";
+    var bF = n(st.bagFluid), bE = n(st.bagEff);
+    [["透析液", r.qd, bF], ["置換液", r.qr, bF], ["PBP", r.pbp, bF], ["Net UF", r.nuf, 0], ["總濾出液 Effluent", r.eff, bE]].forEach(function(x){
+      if (x[0] === "PBP" && !(x[1] > 0)) return;
+      var se = x[1]*H, d = x[1]*24;
+      s += "<tr><td>" + x[0] + "</td><td class=v>" + fmt(x[1]) + "</td><td class=v>" + fmt(se/1000,1) + "</td><td class=v>" + (x[2] > 0 && se > 0 ? Math.ceil(se/x[2]-1e-9) : "–") + "</td><td class=v>" + fmt(d/1000,1) + "</td><td class=v>" + (x[2] > 0 && d > 0 ? Math.ceil(d/x[2]-1e-9) : "–") + "</td></tr>";
+    });
+    s += "</table>";
+    s += "<div class=sig><div>開立醫師：" + pt.ptMd + "</div><div>執行護理師：" + pt.ptRn + "</div><div>核對者：</div></div>";
+    if ($("withLog").checked){
+      var nrows = Math.min(Math.max(Math.ceil(H) || 24, 1), 24);
+      var cols = ["時間","Qb","Access","Return","Effluent 壓","TMP","本小時 Net UF","累積 Net UF","BP","HR","尿量","肝素 mL/hr","aPTT/ACT","簽名"];
+      s += "<div class=log><h1>CRRT 每小時記錄表</h1><p class=rem>" + (pt.ptBed ? "床號 " + pt.ptBed + "　" : "") + (pt.ptName || "") + "　模式 " + st.mode + "　Qb " + fmt(r.qb) + "　Net UF 目標 " + fmt(r.nuf) + " mL/hr　日期 " + pt.ptDate + "</p><table><tr>" + cols.map(function(c){ return "<th>" + c + "</th>"; }).join("") + "</tr>";
+      for (var i = 0; i < nrows; i++){ s += "<tr>" + cols.map(function(){ return "<td></td>"; }).join("") + "</tr>"; }
+      s += "</table></div>";
+    }
+    $("printSheet").innerHTML = s;
+  }
+
+  // ---------- wiring ----------
+  var st0 = load(); apply(st0);
+  try { $("ptDate").value = new Date(Date.now() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,10); } catch(e){}
+  document.addEventListener("input", function(e){ if (e.target.closest && e.target.closest(".wrap")) render(); });
+  document.addEventListener("change", function(e){ if (e.target.closest && e.target.closest(".wrap")) render(); });
+  document.querySelectorAll(".chips[data-for]").forEach(function(g){
+    g.addEventListener("click", function(e){
+      var c = e.target.closest(".chip"); if (!c) return;
+      $(g.getAttribute("data-for")).value = c.getAttribute("data-v"); render();
+    });
+  });
+  $("btnHepKg").addEventListener("click", function(){
+    var W = n($("weight").value);
+    if (!(W > 0)) return;
+    if (has($("hepBolusKg").value)) $("hepBolus").value = Math.round(W * n($("hepBolusKg").value) / 100) * 100;
+    if (has($("hepMaintKg").value)) $("hepMaint").value = Math.round(W * n($("hepMaintKg").value) / 50) * 50;
+    render();
+  });
+  var resetArmed = false, resetTimer = null;
+  $("btnReset").addEventListener("click", function(){
+    var b = $("btnReset");
+    if (!resetArmed){
+      resetArmed = true; b.textContent = "再按一次確認恢復";
+      resetTimer = setTimeout(function(){ resetArmed = false; b.textContent = "恢復原表單預設值"; }, 3000);
+      return;
+    }
+    clearTimeout(resetTimer); resetArmed = false; b.textContent = "恢復原表單預設值";
+    apply(DEFAULTS); render();
+  });
+  $("btnCopy").addEventListener("click", function(){
+    var t = $("handover").textContent, toast = $("toast");
+    function done(ok){ toast.textContent = ok ? "已複製" : "無法自動複製，已選取文字，請手動複製"; setTimeout(function(){ toast.textContent = ""; }, 2500); }
+    function fallback(){
+      var range = document.createRange(); range.selectNodeContents($("handover"));
+      var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range); done(false);
+    }
+    try { navigator.clipboard.writeText(t).then(function(){ done(true); }, fallback); } catch(e){ fallback(); }
+  });
+  // Printing only works when opened as a standalone file (not inside an embedded frame)
+  var topLevel = false; try { topLevel = window.self === window.top; } catch(e){ topLevel = false; }
+  if (topLevel){ $("btnPrint").hidden = false; $("logToggle").hidden = false; }
+  $("btnPrint").addEventListener("click", function(){ render(); window.print(); });
+  window.addEventListener("beforeprint", render);
+  render();
+})();
+</script>
+</body>
+</html>
